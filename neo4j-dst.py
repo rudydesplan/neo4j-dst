@@ -205,7 +205,7 @@ class Itineraire:
 
 class ItineraireApp:
     def __init__(self):
-        self.itineraire = Itineraire("neo4j://localhost:7687", "neo4j", "password")  # Remplacez par vos informations d'authentification
+        self.itineraire = Itineraire("bolt://localhost:7687", "neo4j", "password")  # Remplacez par vos informations d'authentification
 
     def initialize_database(self):
         self.itineraire.init_db()
