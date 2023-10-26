@@ -3,7 +3,6 @@ services:
   neo4j:
     container_name: neo4j
     image: neo4j:5.13.0
-    restart: always
     ports:
       - "7474:7474"
       - "7687:7687"
