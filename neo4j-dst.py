@@ -1,5 +1,3 @@
-#! /usr/bin/python
-
 from neo4j import GraphDatabase
 from neo4j.exceptions import Neo4jError
 
@@ -12,7 +10,7 @@ class Itineraire:
         self._driver.close()
             
     def init_db(self):
-        with self._driver.session() as session:
+        with self._driver.session(database='neo4j') as session:
             try:
                     # Check and initialize nodes
                     session.execute_write(self.create_nodes)
@@ -129,11 +127,18 @@ class Itineraire:
             print("Les propriétés time existent déjà.")
     
     def create_named_graph(self, session):
-        if not session.run("CALL gds.graph.exists('dsti') YIELD exists RETURN exists ").single():
+        with self._driver.session(database='neo4j') as session:
+            exists_check = session.run("CALL gds.graph.exists('dst') YIELD exists RETURN exists").single()
+            if exists_check and exists_check['exists']:
+                print("The graph dst exists and will be deleted.")
+                session.run("CALL gds.graph.drop('dst')")
+                print("The previous graph was deleted.")
+                
+            print("The graph dst will be created.")
             # Création du graphe nommé
             session.run("""
                 CALL gds.graph.project(
-                    'dsti', 
+                    'dst', 
                     {
                         Station: {
                             label: 'Station',
@@ -171,11 +176,10 @@ class Itineraire:
                     }
                 )
             """)
-        else:
-            print("LE named graph DSTI existe déja.")
+            print("The graph dst was created successfully.")
             
     def get_station_name_from_coordinates(self, x, y):
-        with self._driver.session() as session:
+        with self._driver.session(database='neo4j') as session:
             query = (
                 "MATCH (s:Station) "
                 "RETURN s.name AS name, SQRT((s.lat - $x)^2 + (s.lon - $y)^2) AS distance "
@@ -186,10 +190,10 @@ class Itineraire:
             return result["name"] if result else None            
         
     def get_shortest_path(self, start_station, end_station):
-        with self._driver.session() as session:
+        with self._driver.session(database='neo4j') as session:
             query = (
                 "MATCH (start:Station {name: $start_station}), (end:Station {name: $end_station}) "
-                "CALL gds.shortestPath.dijkstra.stream('dsti', {"
+                "CALL gds.shortestPath.dijkstra.stream('dst', {"
                 "    sourceNode: start,"
                 "    targetNode: end,"
                 "    relationshipWeightProperty: 'time'"
@@ -207,7 +211,7 @@ class Itineraire:
 
 class ItineraireApp:
     def __init__(self):
-        self.itineraire = Itineraire("bolt://localhost:7687", "neo4j", "password")  # Remplacez par vos informations d'authentification
+        self.itineraire = Itineraire("neo4j://localhost:7687", "neo4j", "password")  # Remplacez par vos informations d'authentification
 
     def initialize_database(self):
         self.itineraire.init_db()
@@ -250,7 +254,6 @@ class ItineraireApp:
             
         finally:
             self.itineraire.close()
-
 
 
 if __name__ == "__main__":
